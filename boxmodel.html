@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body{
+            font-family:Arial, Helvetica, sans-serif;
+            background-color: aqua;
+        }
+        .main-box{
+            width:250px;
+            padding: 20px;
+            background-color: bisque;
+            border: 5px solid black;
+            padding: 20px;
+            margin: 50px;
+            box-sizing: border-box;
+        }
+        Position start:
+           .main{
+            position: relative;
+            background-color: aliceblue;
+            height: 200px;
+           }
+           .relative{
+            position: relative;
+            background-color: blue;
+            color:antiquewhite;
+            padding: 10px;
+            left: 20px;
+            bottom: 20px;
+            
+           }
+           .Absolute{
+            position: absolute;
+            background-color: green;
+            padding: 10px;
+            right: 20px;
+           }
+           .fixed{
+            position: fixed;
+            background: lightcoral;
+            padding: 10px;
+           }
+
+
+display properties-:
+.Display span{
+    background:violet;
+    padding:10px;
+    margin:5px;
+}
+.block{
+    display: block;
+}
+.inline{
+    display:inline;
+}
+.inline-block{
+     display:inline-block;
+     width: 150px;
+     color: brown;
+
+}
+
+Flex and grid-:
+.flex{
+    background-color:tomato;
+    padding:20px;
+}
+.container{
+    display:flex;
+    justify-content:space-around;
+    align-items:center;
+    height:150px;
+    /* flex-direction:col;*/
+.g1{
+    background-color: blueviolet;
+    text-align: center;
+
+}
+.grid{
+    display:grid;
+   /* grid-template-columns: repeat(3,1fr);*/
+   /*grid-template-columns: 1fr 2fr;*/
+  /* grid-template-columns: 100px 200px 300px*/
+  /*grid-template-rows: 100*/
+  grid-auto-rows: 100px;
+    column-gap: 10px;
+    row-gap: 10px;
+    background-color: orange;
+    padding: 10px;
+
+}
+
+
+
+
+
+
+}
+
+
+
+        
+    </style>
+</head>
+<body>
+    <h1>Box Model</h1>
+    <div class="main-box">
+        I am a Box model <br>
+        Padding inside<br>
+        margin outside
+    </div>
+    <!--Position.html
+    1. relative -:stays in normal, it can be moved left, right
+    2.absolute-: removed from normal position can be fixed anywhere where you want
+    3.fixed-:
+    -->
+<h2>Positioning</h2>
+<div class="main">
+    <div class="relative">relative</div>
+    <div class="Absolute">absolute</div>
+    <div class="fixed">fixed</div>
+
+
+
+</div>
+
+<!--display properties.html-->
+
+
+<br>
+<h1>Display Properties</h1>
+<!--inline,block,Inline block-->
+<div class="Display">
+    <span class="block">Block</span><!--start for new line..-->
+    <span class="inline">Inline</span><!--on the same line..-->
+    <span class="inline-block">Inline-block</span><!--same as inline..-->
+    </div>
+
+
+<!--flex and grid-->
+
+<h1>Flex</h1>
+<div class="container">
+    <div class="flex1">1</div>
+     <div class="flex1">2</div>
+      <div class="flex1">3</div>
+</div>
+
+<!--grids-->
+<div class="grid">
+<div class="g1">1</div>
+<div class="g1">2</div>
+<div class="g1">3</div>
+<div class="g1">4</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+</body>
+</html>
