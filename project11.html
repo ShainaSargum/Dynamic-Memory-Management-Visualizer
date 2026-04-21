@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StartupX</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f4f6;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 40px;
+  background: #0b1a33;
+  color: white;
+}
+
+.navbar ul {
+  display: flex;
+  list-style: none;
+  gap: 20px;
+}
+
+.navbar li {
+  cursor: pointer;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40px;
+}
+
+.hero-text h1 {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.hero-text p {
+  color: gray;
+  margin-bottom: 15px;
+}
+
+.hero-text button {
+  padding: 10px 20px;
+  border: none;
+  background: linear-gradient(45deg, #5f6fff, #00c6ff);
+  color: white;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.hero-box {
+  width: 60%;
+  height: 150px;
+  background: linear-gradient(90deg, #5f6fff, #00c6ff);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+}
+
+.features {
+  display: flex;
+  gap: 20px;
+  padding: 20px 40px;
+}
+
+.card {
+  flex: 1;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.card span {
+  display: block;
+  color: gray;
+  font-size: 14px;
+}
+
+.card.active {
+  background: linear-gradient(45deg, #8f8fff, #5fd3ff);
+  color: white;
+}
+
+.pricing {
+  display: flex;
+  gap: 20px;
+  padding: 40px;
+}
+
+.price-card {
+  flex: 1;
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.price-card button {
+  margin-top: 10px;
+  padding: 8px 15px;
+  border: none;
+  background: #0b1a33;
+  color: white;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.footer {
+  background: #0b1a33;
+  color: white;
+  display: flex;
+  justify-content: space-around;
+  padding: 30px;
+  margin-top: 40px;
+}
+</style>
+
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="logo">StartupX</div>
+  <ul>
+    <li>Home</li>
+    <li>Features</li>
+    <li>Pricing</li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="hero-text">
+    <h1>Build Your Dream App</h1>
+    <p>Create beautiful responsive websites with modern animations.</p>
+    <button onclick="start()">Get Started</button>
+  </div>
+  <div class="hero-box">App Preview</div>
+</section>
+
+<section class="features">
+  <div class="card">⚡ Fast<span>Optimized performance for smooth experience.</span></div>
+  <div class="card active">📱 Responsive<span>Works on mobile, tablet, and desktop.</span></div>
+  <div class="card">🔒 Secure<span>Modern web security practices.</span></div>
+</section>
+
+<section class="pricing">
+  <div class="price-card">
+    <h3>Basic</h3>
+    <p>$9/month</p>
+    <button>Select</button>
+  </div>
+  <div class="price-card">
+    <h3>Pro</h3>
+    <p>$29/month</p>
+    <button>Select</button>
+  </div>
+  <div class="price-card">
+    <h3>Enterprise</h3>
+    <p>$99/month</p>
+    <button>Select</button>
+  </div>
+</section>
+
+<footer class="footer">
+  <div>
+    <h4>About</h4>
+    <p>Modern responsive design solutions.</p>
+  </div>
+  <div>
+    <h4>Links</h4>
+    <p>Home<br>Services</p>
+  </div>
+  <div>
+    <h4>Contact</h4>
+    <p>info@startupx.com</p>
+  </div>
+</footer>
+
+<script>
+function start() {
+  alert("Getting Started!");
+}
+</script>
+
+</body>
+</html>

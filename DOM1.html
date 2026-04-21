@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager</title>
+
+    <style>
+        body {
+            font-family: Arial;
+        }
+        li {
+            margin: 5px 0;
+        }
+        .del {
+            margin-left: 10px;
+            color: white;
+            background: red;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Task Manager</h1>
+
+    <input type="text" id="taskinput" placeholder="Enter Task">
+    <button id="addbtn">Add Task</button>
+
+    <br><br>
+
+    <input type="text" id="search" placeholder="Search task">
+
+    <ul id="Tasklist"></ul>
+
+    <script>
+        // Access elements
+        let taskinput = document.getElementById("taskinput")
+        let addBtn = document.getElementById("addbtn")
+        let Tasklist = document.getElementById("Tasklist")
+        let search = document.getElementById("search")
+
+        // Add Task
+        addBtn.addEventListener("click", () => {
+            if (taskinput.value.trim() === "") return
+
+            let li = document.createElement("li")
+
+            li.innerHTML = `
+                <span>${taskinput.value}</span>
+                <button class="del">Delete</button>
+            `
+
+            Tasklist.appendChild(li)
+            taskinput.value = ""
+        })
+
+        // Delete Task (Event Delegation)
+        Tasklist.addEventListener("click", (e) => {
+            if (e.target.classList.contains("del")) {
+                e.target.parentElement.remove()
+            }
+        })
+
+        // Search Task
+        search.addEventListener("keyup", () => {
+            let filter = search.value.toLowerCase()
+            let tasks = Tasklist.getElementsByTagName("li")
+
+            Array.from(tasks).forEach((task) => {
+                let text = task.querySelector("span").innerText.toLowerCase()
+
+                if (text.includes(filter)) {
+                    task.style.display = ""
+                } else {
+                    task.style.display = "none"
+                }
+            })
+        })
+        //Task to complete
+        //delete the task
+        //search the task
+    </script>
+
+</body>
+</html>

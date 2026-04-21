@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧠 Dynamic Memory Management Visualizer</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            color: #f1f5f9; min-height: 100vh; overflow-x: hidden;
+        }
+        .navbar {
+            background: linear-gradient(90deg, #00d9ff 0%, #a78bfa 100%);
+            padding: 0; box-shadow: 0 4px 20px rgba(0,217,255,.3);
+            position: sticky; top: 0; z-index: 1000;
+        }
+        .navbar-content { max-width: 1400px; margin: 0 auto; padding: 20px;
+            display:flex; justify-content:space-between; align-items:center; }
+        .navbar h1 { color:#0f172a; font-size:28px; font-weight:bold;
+            text-shadow:0 2px 4px rgba(0,0,0,.1); animation: glow 3s ease-in-out infinite; }
+        .nav-tabs { display:flex; gap:10px; }
+        .nav-btn { padding:10px 20px; border:none; background:rgba(255,255,255,.2);
+            color:#0f172a; font-weight:bold; cursor:pointer; border-radius:5px;
+            transition:all .3s; font-size:14px; }
+        .nav-btn:hover { background:rgba(255,255,255,.4); transform:translateY(-2px); }
+        .nav-btn.active { background:#0f172a; color:#00d9ff;
+            box-shadow:0 0 15px rgba(0,217,255,.5); }
+        .container { max-width:1400px; margin:0 auto; padding:30px 20px; }
+        .tab-content { display:none; animation: fadeIn .5s; }
+        .tab-content.active { display:block; }
+        @keyframes fadeIn { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
+        .section {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border:2px solid #00d9ff; border-radius:15px; padding:30px;
+            margin-bottom:30px; box-shadow:0 10px 40px rgba(0,217,255,.1);
+        }
+        .section h2 { color:#00d9ff; font-size:24px; margin-bottom:20px;
+            text-shadow:0 0 10px rgba(0,217,255,.3); }
+        .definition-box {
+            background: rgba(10,14,39,.8); border-left:4px solid #a78bfa;
+            padding:20px; border-radius:8px; margin-bottom:20px;
+            font-size:14px; line-height:1.8; color:#cbd5e1;
+        }
+        .input-group { margin-bottom:20px; }
+        .input-group label { display:block; color:#a78bfa; font-weight:bold;
+            margin-bottom:10px; font-size:14px; }
+        .input-group input { width:100%; padding:12px 15px; background:#0a0e27;
+            border:2px solid #00d9ff; border-radius:8px; color:#00d9ff;
+            font-size:14px; font-family:'Courier New', monospace; transition:all .3s; }
+        .input-group input:focus { outline:none; border-color:#a78bfa;
+            box-shadow:0 0 20px rgba(167,139,250,.3); }
+        .examples-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+            gap:10px; margin-bottom:20px; }
+        .example-btn { padding:12px 16px;
+            background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+            color:white; border:none; border-radius:8px; cursor:pointer;
+            font-weight:bold; font-size:12px; transition:all .3s;
+            box-shadow:0 4px 15px rgba(167,139,250,.3); }
+        .example-btn:hover { transform:translateY(-3px);
+            box-shadow:0 6px 20px rgba(167,139,250,.5); }
+        .algorithm-buttons { display:grid;
+            grid-template-columns:repeat(auto-fit, minmax(200px,1fr));
+            gap:15px; margin-bottom:20px; }
+        .algo-btn { padding:18px 25px; border:none; border-radius:10px;
+            font-weight:bold; font-size:16px; cursor:pointer; transition:all .3s;
+            box-shadow:0 6px 20px rgba(0,0,0,.3);
+            text-transform:uppercase; letter-spacing:1px; }
+        .fifo-btn { background: linear-gradient(135deg, #00d9ff 0%, #0ea5e9 100%); color:#0f172a; }
+        .fifo-btn:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(0,217,255,.4); }
+        .lru-btn { background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); color:white; }
+        .lru-btn:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(167,139,250,.4); }
+        .optimal-btn { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; }
+        .optimal-btn:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(16,185,129,.4); }
+
+        /* Reduced visualization size */
+        #animationCanvas {
+            width: 100%; height: 150px; background:#0a0e27;
+            border:2px solid #00d9ff; border-radius:8px; margin-bottom:20px;
+            display:none;
+        }
+        #animationCanvas.active { display:block; }
+
+        #output { background:#000814; border:2px solid #10b981; border-radius:8px;
+            padding:15px; height:220px; overflow-y:auto;
+            font-family:'Courier New', monospace; font-size:12px;
+            color:#10b981; line-height:1.6; display:none;
+            white-space: pre-wrap;
+        }
+        #output.active { display:block; }
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr));
+            gap:15px; margin-top:20px; }
+        .stat-card { background:linear-gradient(135deg,#0a0e27 0%, #1e293b 100%);
+            border:2px solid #00d9ff; border-radius:10px; padding:18px;
+            text-align:center; box-shadow:0 4px 15px rgba(0,217,255,.2); }
+        .stat-card h3 { color:#00d9ff; margin-bottom:12px; font-size:16px; }
+        .stat-value { font-size:22px; font-weight:bold; color:#10b981;
+            margin-bottom:4px; font-family:'Courier New', monospace; }
+        .stat-label { color:#cbd5e1; font-size:12px; }
+
+        /* Graph fix: explicit container height + maintainAspectRatio:false */
+        .graph-section { display:grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px,1fr));
+            gap:20px; margin-top:10px; }
+        .graph-container { background:#1e293b; border:2px solid #a78bfa;
+            border-radius:10px; padding:20px;
+            box-shadow:0 4px 15px rgba(167,139,250,.2); }
+        .graph-container h3 { color:#a78bfa; margin-bottom:15px; text-align:center; }
+        .chart-wrap { position: relative; height: 260px; width: 100%; }
+
+        .graph-btn { padding:15px 30px;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color:white; border:none; border-radius:8px; font-weight:bold;
+            font-size:16px; cursor:pointer; transition:all .3s;
+            box-shadow:0 6px 20px rgba(245,158,11,.3);
+            width:100%; margin-top:10px; }
+        .graph-btn:hover { transform:translateY(-3px);
+            box-shadow:0 8px 25px rgba(245,158,11,.5); }
+
+        /* Reduced segmentation visualization, hidden until used */
+        #segWrap { display:none; }
+        #segWrap.active { display:block; }
+        #segmentationCanvas {
+            width:100%; height:170px; background:#0a0e27;
+            border:2px solid #10b981; border-radius:8px; margin:10px 0;
+        }
+
+        ::-webkit-scrollbar { width:8px; }
+        ::-webkit-scrollbar-track { background:#0f172a; }
+        ::-webkit-scrollbar-thumb { background:#00d9ff; border-radius:4px; }
+        ::-webkit-scrollbar-thumb:hover { background:#a78bfa; }
+        @keyframes glow {
+            0%,100% { text-shadow:0 0 10px rgba(0,217,255,.3); }
+            50% { text-shadow:0 0 20px rgba(0,217,255,.6), 0 0 30px rgba(167,139,250,.4); }
+        }
+        .help-text { color:#a78bfa; font-size:12px; margin-top:10px;
+            padding:10px; background:rgba(167,139,250,.1);
+            border-left:3px solid #a78bfa; border-radius:4px; }
+        .status-message { padding:15px; border-radius:8px; margin-bottom:20px;
+            display:none; animation: slideDown .3s; }
+        .status-message.success { background:rgba(16,185,129,.2);
+            border:2px solid #10b981; color:#10b981; }
+        .status-message.error { background:rgba(239,68,68,.2);
+            border:2px solid #ef4444; color:#ef4444; }
+        .status-message.show { display:block; }
+        @keyframes slideDown { from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:translateY(0);} }
+        @media (max-width:768px) {
+            .navbar-content { flex-direction:column; gap:15px; }
+            .nav-tabs { flex-wrap:wrap; }
+            .algorithm-buttons { grid-template-columns:1fr; }
+            .graph-section { grid-template-columns:1fr; }
+            .navbar h1 { font-size:20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="navbar-content">
+            <h1>🧠 Dynamic Memory Management Visualizer </h1>
+            <div class="nav-tabs">
+                <button class="nav-btn active" onclick="switchTab(event,'paging')">📄 Paging</button>
+                <button class="nav-btn" onclick="switchTab(event,'segmentation')">🔐 Segmentation</button>
+                <button class="nav-btn" onclick="switchTab(event,'virtual')">🧮 Virtual Memory</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="statusMessage" class="status-message"></div>
+
+        <!-- PAGING TAB -->
+        <div id="paging" class="tab-content active">
+            <div class="section">
+                <h2>📚 PAGING Definition</h2>
+                <div class="definition-box">
+                    <strong>Paging:</strong> Memory management technique dividing physical RAM into fixed-size FRAMES and logical memory into PAGES.<br><br>
+                    <strong>KEY CONCEPTS:</strong><br>
+                    • <strong>PAGE:</strong> Fixed-size logical memory block (e.g., 4KB, 8KB)<br>
+                    • <strong>FRAME:</strong> Fixed-size physical RAM block<br>
+                    • <strong>PAGE FAULT:</strong> Required page not in memory → Slow disk access<br>
+                    • <strong>PAGE HIT:</strong> Page already in memory → Fast access<br>
+                    • <strong>ALGORITHMS:</strong> FIFO (Simple), LRU (Better), OPTIMAL (Theoretical Best)
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📥 Input Parameters</h2>
+                <div>
+                    <label style="color:#00d9ff; font-weight:bold; display:block; margin-bottom:10px;">Quick Examples:</label>
+                    <div class="examples-grid">
+                        <button class="example-btn" onclick="loadExample(1)">Example 1</button>
+                        <button class="example-btn" onclick="loadExample(2)">Example 2</button>
+                        <button class="example-btn" onclick="loadExample(3)">Example 3</button>
+                        <button class="example-btn" onclick="loadExample(4)">Example 4</button>
+                        <button class="example-btn" onclick="loadExample(5)">Example 5</button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>📄 Page Reference String:</label>
+                    <input type="text" id="pageInput" placeholder="Enter space-separated page numbers (e.g., 1 2 3 4 1 2 5 1)">
+                    <div class="help-text">💡 Tip: Click an example button above or enter your own page sequence</div>
+                </div>
+                <div class="input-group">
+                    <label>🔢 Number of Frames:</label>
+                    <input type="number" id="framesInput" value="3" min="1" max="10">
+                    <div class="help-text">💡 Tip: Number of frames in memory (usually 3-4)</div>
+                </div>
+                <div class="input-group">
+                    <label>⏱️ Animation Speed:</label>
+                    <input type="range" id="speedInput" min="50" max="1000" value="300" style="width:100%; height:6px; cursor:pointer;">
+                    <div style="color:#cbd5e1; font-size:12px; margin-top:5px;">Current: <span id="speedValue">300</span>ms</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🚀 Run Page Replacement Algorithm</h2>
+                <div class="algorithm-buttons">
+                    <button class="algo-btn fifo-btn" onclick="runAlgorithm('FIFO')">⚡ Run FIFO</button>
+                    <button class="algo-btn lru-btn" onclick="runAlgorithm('LRU')">⚡ Run LRU</button>
+                    <button class="algo-btn optimal-btn" onclick="runAlgorithm('OPTIMAL')">⚡ Run OPTIMAL</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🎨 Memory Visualization</h2>
+                <canvas id="animationCanvas" width="1200" height="150"></canvas>
+                <div id="output"></div>
+            </div>
+
+            <div class="section">
+                <h2>📊 Algorithm Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card"><h3>FIFO</h3>
+                        <div class="stat-value" id="fifo-faults">-</div><div class="stat-label">Faults</div>
+                        <div class="stat-value" id="fifo-ratio">-</div><div class="stat-label">Hit Ratio</div>
+                    </div>
+                    <div class="stat-card"><h3>LRU</h3>
+                        <div class="stat-value" id="lru-faults">-</div><div class="stat-label">Faults</div>
+                        <div class="stat-value" id="lru-ratio">-</div><div class="stat-label">Hit Ratio</div>
+                    </div>
+                    <div class="stat-card"><h3>OPTIMAL</h3>
+                        <div class="stat-value" id="optimal-faults">-</div><div class="stat-label">Faults</div>
+                        <div class="stat-value" id="optimal-ratio">-</div><div class="stat-label">Hit Ratio</div>
+                    </div>
+                </div>
+                <button class="graph-btn" onclick="showGraphs()">📊 Click to View Comparison Graphs</button>
+            </div>
+
+            <div id="graphsSection" style="display:none;">
+                <div class="section">
+                    <h2>📈 Algorithm Comparison Graphs</h2>
+                    <div class="graph-section">
+                        <div class="graph-container">
+                            <h3>Page Faults Comparison</h3>
+                            <div class="chart-wrap"><canvas id="faultChart"></canvas></div>
+                        </div>
+                        <div class="graph-container">
+                            <h3>Hit Ratio Comparison</h3>
+                            <div class="chart-wrap"><canvas id="ratioChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEGMENTATION TAB -->
+        <div id="segmentation" class="tab-content">
+            <div class="section">
+                <h2>📚 Segmentation Concepts</h2>
+                <div class="definition-box">
+                    <strong>SEGMENTATION:</strong> Memory divided into variable-size logical blocks (SEGMENTS)<br><br>
+                    <strong>1️⃣ BASE ADDRESS:</strong> Physical starting address of segment<br>
+                    <strong>2️⃣ LIMIT:</strong> Maximum size of segment in bytes (prevents illegal access)<br>
+                    <strong>3️⃣ OFFSET:</strong> Distance within segment from base<br>
+                    • ✅ Valid if Offset &lt; Limit &nbsp; ❌ Fault if Offset ≥ Limit<br><br>
+                    <strong>ADDRESS TRANSLATION:</strong> Physical Address = Base + Offset
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🔐 Address Translation</h2>
+                <div>
+                    <label style="color:#10b981; font-weight:bold; display:block; margin-bottom:10px;">Quick Examples:</label>
+                    <div class="examples-grid">
+                        <button class="example-btn" onclick="loadSegExample('safe')" style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);">Safe Access</button>
+                        <button class="example-btn" onclick="loadSegExample('border')" style="background:linear-gradient(135deg,#00d9ff 0%,#0ea5e9 100%);">Border Case</button>
+                        <button class="example-btn" onclick="loadSegExample('fault')" style="background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);">Fault Case</button>
+                        <button class="example-btn" onclick="loadSegExample('large')" style="background:linear-gradient(135deg,#a78bfa 0%,#8b5cf6 100%);">Large Seg</button>
+                        <button class="example-btn" onclick="loadSegExample('edge')" style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);">Edge Case</button>
+                    </div>
+                </div>
+                <div class="input-group"><label>🔵 Base Address:</label>
+                    <input type="number" id="baseInput" value="1000" min="0"></div>
+                <div class="input-group"><label>📏 Limit (Segment Size):</label>
+                    <input type="number" id="limitInput" value="2000" min="1"></div>
+                <div class="input-group"><label>📍 Offset:</label>
+                    <input type="number" id="offsetInput" value="500" min="0"></div>
+                <button class="graph-btn" onclick="calculateSegmentation()" style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);">🔍 Calculate Address Translation</button>
+            </div>
+
+            <div id="segWrap">
+                <div class="section">
+                    <h2>📊 Memory Segment Visualization</h2>
+                    <canvas id="segmentationCanvas" width="1200" height="170"></canvas>
+                    <div id="segmentationResult" style="background:#0a0e27; border-left:4px solid #10b981; padding:18px; border-radius:8px; font-size:15px; font-weight:bold; color:#10b981; font-family:'Courier New', monospace; margin-top:10px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIRTUAL MEMORY TAB -->
+        <div id="virtual" class="tab-content">
+            <div class="section">
+                <h2>🧮 Virtual Memory</h2>
+                <div class="definition-box">
+                    <strong>VIRTUAL MEMORY:</strong> A memory management technique that gives an application the illusion of a very large, contiguous main memory by combining RAM with disk-based secondary storage (swap space). The OS maps virtual addresses used by a program to physical addresses in RAM, loading pages on demand.
+                </div>
+
+                <div class="definition-box" style="border-left-color:#00d9ff;">
+                    <h3 style="color:#00d9ff; margin-bottom:10px;">🔹 Why Virtual Memory?</h3>
+                    • Run programs larger than physical RAM<br>
+                    • Each process gets its own isolated address space (security + safety)<br>
+                    • Efficient sharing of memory between processes<br>
+                    • Simplifies linking, loading, and relocation
+                </div>
+
+                <div class="definition-box" style="border-left-color:#a78bfa;">
+                    <h3 style="color:#a78bfa; margin-bottom:10px;">🔹 Key Terms</h3>
+                    • <strong>Virtual Address:</strong> Address generated by the CPU (per-process).<br>
+                    • <strong>Physical Address:</strong> Actual location in RAM.<br>
+                    • <strong>Page Table:</strong> Mapping from virtual pages to physical frames.<br>
+                    • <strong>MMU:</strong> Hardware that performs the translation.<br>
+                    • <strong>TLB:</strong> Cache of recent page-table entries for fast translation.<br>
+                    • <strong>Swap Space:</strong> Area on disk used to hold pages evicted from RAM.
+                </div>
+
+                <div class="definition-box" style="border-left-color:#10b981;">
+                    <h3 style="color:#10b981; margin-bottom:10px;">🔹 Demand Paging</h3>
+                    Pages are brought into RAM <em>only when needed</em>. If a referenced page is not present, a <strong>page fault</strong> occurs and the OS loads it from disk, possibly replacing another page using FIFO / LRU / OPTIMAL.
+                </div>
+
+                <div class="definition-box" style="border-left-color:#f59e0b;">
+                    <h3 style="color:#f59e0b; margin-bottom:10px;">🔹 Address Translation Flow</h3>
+                    1. CPU emits a virtual address → split into <em>page number</em> + <em>offset</em>.<br>
+                    2. MMU checks the TLB; on miss it walks the page table.<br>
+                    3. If the page is in RAM → form physical address = frame × pageSize + offset.<br>
+                    4. If not → page fault → OS loads page from disk → retry instruction.
+                </div>
+
+                <div class="definition-box" style="border-left-color:#ef4444;">
+                    <h3 style="color:#ef4444; margin-bottom:10px;">🔹 Thrashing</h3>
+                    When a system spends more time swapping pages in/out than executing useful work. Caused by too many active processes vs. available frames. Mitigated by working-set models and load control.
+                </div>
+
+                <div class="definition-box" style="border-left-color:#00d9ff;">
+                    <h3 style="color:#00d9ff; margin-bottom:10px;">🔹 Effective Access Time (EAT)</h3>
+                    EAT = (1 − p) × memory_access + p × page_fault_time<br>
+                    where <strong>p</strong> = page fault rate. Even small <em>p</em> hurts performance because page fault time is huge compared to RAM access.
+                </div>
+
+                <div class="definition-box" style="border-left-color:#a78bfa;">
+                    <h3 style="color:#a78bfa; margin-bottom:10px;">🔹 Advantages vs Disadvantages</h3>
+                    <strong>✅ Advantages:</strong> Larger logical address space, isolation, multiprogramming, on-demand loading.<br>
+                    <strong>❌ Disadvantages:</strong> Page fault overhead, thrashing risk, hardware (MMU/TLB) complexity.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const examples = {
+            1: { pages: '7 0 1 2 0 3 0 4 2 3 0 3 2 1 2', frames: '3' },
+            2: { pages: '1 2 3 4 1 2 3 4 1 2 3 4 1 2 3 4', frames: '3' },
+            3: { pages: '1 2 3 4 5 6 7 8 9 10 1 2 3 4 5', frames: '3' },
+            4: { pages: '4 7 6 1 7 6 1 6 2 7 2 7 2 1 1 4 6 4 2 1', frames: '3' },
+            5: { pages: '1 2 3 4 1 2 5 1 2 3 4 5 3 4 3 2 1 5', frames: '3' }
+        };
+        const segExamples = {
+            safe:   { base:'1000', limit:'2000', offset:'500' },
+            border: { base:'5000', limit:'1000', offset:'999' },
+            fault:  { base:'1000', limit:'500',  offset:'600' },
+            large:  { base:'0',    limit:'5000', offset:'2000' },
+            edge:   { base:'2000', limit:'1000', offset:'1000' }
+        };
+        let currentStats = {};
+
+        function switchTab(ev, tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            ev.target.classList.add('active');
+        }
+        function loadExample(num) {
+            const ex = examples[num];
+            document.getElementById('pageInput').value = ex.pages;
+            document.getElementById('framesInput').value = ex.frames;
+            showStatus(`✅ Example ${num} loaded!`, 'success');
+        }
+        function loadSegExample(type) {
+            const ex = segExamples[type];
+            document.getElementById('baseInput').value = ex.base;
+            document.getElementById('limitInput').value = ex.limit;
+            document.getElementById('offsetInput').value = ex.offset;
+            // calculateSegmentation();
+            showStatus(`✅ ${type.toUpperCase()} example loaded!`, 'success');
+        }
+        document.getElementById('speedInput').addEventListener('input', function() {
+            document.getElementById('speedValue').textContent = this.value;
+        });
+
+        function fifo(pages, cap) {
+            let frame=[], faults=0, idx=0, steps=[];
+            for (let p of pages) {
+                if (!frame.includes(p)) {
+                    if (frame.length<cap) frame.push(p);
+                    else { frame[idx]=p; idx=(idx+1)%cap; }
+                    if (frame.length===cap && !frame.includes(p)) {} // no-op
+                    faults++;
+                }
+                steps.push([...frame]);
+            }
+            return { faults, steps };
+        }
+        function lru(pages, cap) {
+            let frame=[], faults=0, steps=[];
+            for (let i=0; i<pages.length; i++) {
+                if (!frame.includes(pages[i])) {
+                    if (frame.length<cap) frame.push(pages[i]);
+                    else {
+                        let lru_i=0, least=i;
+                        for (let j=0; j<frame.length; j++) {
+                            let last=-1;
+                            for (let k=i-1; k>=0; k--) {
+                                if (pages[k]===frame[j]) { last=k; break; }
+                            }
+                            if (last<least) { least=last; lru_i=j; }
+                        }
+                        frame[lru_i]=pages[i];
+                    }
+                    faults++;
+                }
+                steps.push([...frame]);
+            }
+            return { faults, steps };
+        }
+        function optimal(pages, cap) {
+            let frame=[], faults=0, steps=[];
+            for (let i=0; i<pages.length; i++) {
+                if (!frame.includes(pages[i])) {
+                    if (frame.length<cap) frame.push(pages[i]);
+                    else {
+                        let future = pages.slice(i+1);
+                        let idx=-1, far=-1;
+                        for (let j=0; j<frame.length; j++) {
+                            if (!future.includes(frame[j])) { idx=j; break; }
+                            else {
+                                let pos = future.indexOf(frame[j]);
+                                if (pos>far) { far=pos; idx=j; }
+                            }
+                        }
+                        frame[idx]=pages[i];
+                    }
+                    faults++;
+                }
+                steps.push([...frame]);
+            }
+            return { faults, steps };
+        }
+
+        function drawFrames(canvas, frame, highlight) {
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+            ctx.fillStyle = '#0a0e27';
+            ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = '#00d9ff';
+            ctx.font = 'bold 12px Segoe UI';
+            ctx.textAlign = 'left';
+            ctx.fillText('Current Memory Frames:', 16, 18);
+
+            const n = Math.max(frame.length, 1);
+            const fw = Math.min(70, (W - 60) / n - 16);
+            const fh = 70;
+            const startY = 40;
+            const startX = 30;
+            const spacing = fw + 16;
+
+            frame.forEach((val, i) => {
+                const x = startX + i * spacing;
+                const isH = val === highlight;
+                const color = isH ? '#10b981' : '#00d9ff';
+                ctx.strokeStyle = color;
+                ctx.lineWidth = isH ? 4 : 2;
+                ctx.strokeRect(x, startY, fw, fh);
+                ctx.fillStyle = '#a78bfa';
+                ctx.font = 'bold 10px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Frame ${i}`, x + fw/2, startY - 6);
+                ctx.fillStyle = color;
+                ctx.font = 'bold 22px Courier New';
+                ctx.fillText(val, x + fw/2, startY + fh/2 + 8);
+            });
+        }
+
+        function runAlgorithm(algoName) {
+            try {
+               currentStats = {};
+                const pageStr = document.getElementById('pageInput').value.trim();
+                const frameStr = document.getElementById('framesInput').value.trim();
+                if (!pageStr) throw new Error('Please enter page references');
+                if (!frameStr) throw new Error('Please enter number of frames');
+                const pages = pageStr.split(/\s+/).map(Number);
+                const cap = parseInt(frameStr);
+                if (cap<=0) throw new Error('Frames must be > 0');
+                if (pages.some(isNaN)) throw new Error('Page references must be numbers');
+
+                const canvas = document.getElementById('animationCanvas');
+                const output = document.getElementById('output');
+                const speed = parseInt(document.getElementById('speedInput').value);
+                canvas.classList.add('active');
+                output.classList.add('active');
+                output.textContent = '';
+
+                let result;
+                if (algoName==='FIFO') result = fifo(pages, cap);
+                else if (algoName==='LRU') result = lru(pages, cap);
+                else result = optimal(pages, cap);
+
+                const { faults, steps } = result;
+                const hits = pages.length - faults;
+                const ratio = ((hits / pages.length) * 100).toFixed(1);
+                currentStats[algoName] = { faults, hits, ratio };
+
+                const algo = algoName.toLowerCase();
+                document.getElementById(`${algo}-faults`).textContent = faults;
+                document.getElementById(`${algo}-ratio`).textContent = ratio + '%';
+
+                output.textContent +=
+`═══════════════════════════════════════════════════
+  ${algoName} ALGORITHM
+═══════════════════════════════════════════════════
+📊 Faults: ${faults} | Hits: ${hits} | Ratio: ${ratio}%
+───────────────────────────────────────────────────
+`;
+                let step = 0;
+                const animate = () => {
+                    if (step < steps.length) {
+                        const prev = step>0 ? steps[step-1] : [];
+                        const status = prev.includes(pages[step]) ? '✅ HIT' : '❌ FAULT';
+                        drawFrames(canvas, steps[step], pages[step]);
+                        output.textContent += `Step ${step+1}: [${steps[step].join(', ')}] → Page ${pages[step]} → ${status}\n`;
+                        output.scrollTop = output.scrollHeight;
+                        step++;
+                        setTimeout(animate, speed);
+                    }
+                };
+                animate();
+                showStatus(`✅ ${algoName} algorithm executed!`, 'success');
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        
+
+function showGraphs() {
+    try {
+        // Old charts destroy
+        if (window._faultChart) {
+            window._faultChart.destroy();
+            window._faultChart = null;
+        }
+        if (window._ratioChart) {
+            window._ratioChart.destroy();
+            window._ratioChart = null;
+        }
+
+        if (Object.keys(currentStats).length === 0)
+            throw new Error('Please run at least one algorithm first');
+
+        document.getElementById('graphsSection').style.display = 'block';
+
+        const labels = Object.keys(currentStats);
+        const faults = labels.map(l => currentStats[l].faults);
+        const ratios = labels.map(l => parseFloat(currentStats[l].ratio));
+        const colors = ['#00d9ff', '#a78bfa', '#10b981'];
+
+        // 📊 PAGE FAULT GRAPH
+        const fctx = document.getElementById('faultChart').getContext('2d');
+        window._faultChart = new Chart(fctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Page Faults',
+                    data: faults,
+                    backgroundColor: colors,
+                    borderColor: colors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#cbd5e1' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Page Faults',
+                            color: '#00d9ff',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: { color: '#cbd5e1' },
+                        grid: { color: '#1e293b' }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Algorithms',
+                            color: '#a78bfa',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: { color: '#cbd5e1' },
+                        grid: { color: '#1e293b' }
+                    }
+                }
+            }
+        });
+
+        // 📊 HIT RATIO GRAPH
+        const rctx = document.getElementById('ratioChart').getContext('2d');
+        window._ratioChart = new Chart(rctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Hit Ratio (%)',
+                    data: ratios,
+                    backgroundColor: colors,
+                    borderColor: colors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#cbd5e1' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Hit Ratio (%)',
+                            color: '#00d9ff',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: { color: '#cbd5e1' },
+                        grid: { color: '#1e293b' }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Algorithms',
+                            color: '#a78bfa',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: { color: '#cbd5e1' },
+                        grid: { color: '#1e293b' }
+                    }
+                }
+            }
+        });
+
+        showStatus('✅ Graph updated with labels!', 'success');
+
+    } catch (error) {
+        showStatus(`❌ Error: ${error.message}`, 'error');
+    }
+}
+        function calculateSegmentation() {
+            try {
+                const baseEl = document.getElementById('baseInput');
+                const limEl = document.getElementById('limitInput');
+                const offEl = document.getElementById('offsetInput');
+                if (baseEl.value==='' || limEl.value==='' || offEl.value==='')
+                    throw new Error('Please enter Base, Limit, and Offset');
+
+                const base = parseInt(baseEl.value);
+                const limit = parseInt(limEl.value);
+                const offset = parseInt(offEl.value);
+                if (isNaN(limit) || limit<=0) throw new Error('Limit must be > 0');
+                if (isNaN(base) || base<0) throw new Error('Base must be ≥ 0');
+                if (isNaN(offset) || offset<0) throw new Error('Offset must be ≥ 0');
+
+                document.getElementById('segWrap').classList.add('active');
+
+                const canvas = document.getElementById('segmentationCanvas');
+                const ctx = canvas.getContext('2d');
+                const W = canvas.width, H = canvas.height;
+                ctx.fillStyle = '#0a0e27'; ctx.fillRect(0, 0, W, H);
+
+                ctx.fillStyle = '#00d9ff';
+                ctx.font = 'bold 13px Segoe UI';
+                ctx.textAlign = 'left';
+                ctx.fillText('Physical Memory Segment Layout:', 20, 22);
+
+                const memStart = 80, memEnd = W - 80, memHeight = 50, memY = 45;
+                ctx.strokeStyle = '#00d9ff'; ctx.lineWidth = 3;
+                ctx.strokeRect(memStart, memY, memEnd - memStart, memHeight);
+
+                const segWidth = memEnd - memStart;
+                const usedRatio = Math.min(offset / limit, 1);
+                ctx.fillStyle = offset < limit ? '#10b981' : '#ef4444';
+                ctx.fillRect(memStart, memY, usedRatio * segWidth, memHeight);
+
+                ctx.strokeStyle = '#00d9ff'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(memStart, memY+memHeight);
+                ctx.lineTo(memStart, memY+memHeight+18); ctx.stroke();
+                ctx.fillStyle = '#00d9ff';
+                ctx.font = 'bold 11px Segoe UI'; ctx.textAlign = 'center';
+                ctx.fillText(`BASE ${base}`, memStart, memY+memHeight+32);
+
+                ctx.strokeStyle = '#a78bfa';
+                ctx.beginPath(); ctx.moveTo(memEnd, memY+memHeight);
+                ctx.lineTo(memEnd, memY+memHeight+18); ctx.stroke();
+                ctx.fillStyle = '#a78bfa';
+                ctx.fillText(`LIMIT ${limit}`, memEnd, memY+memHeight+32);
+
+                const offsetX = memStart + usedRatio * segWidth;
+                ctx.strokeStyle = offset < limit ? '#10b981' : '#ef4444';
+                ctx.beginPath(); ctx.moveTo(offsetX, memY);
+                ctx.lineTo(offsetX, memY-14); ctx.stroke();
+                ctx.fillStyle = offset < limit ? '#10b981' : '#ef4444';
+                ctx.fillText(`OFFSET +${offset}`, offsetX, memY-18);
+
+                const resultDiv = document.getElementById('segmentationResult');
+                if (offset < limit) {
+                    const physAddr = base + offset;
+                    resultDiv.innerHTML =
+`✅ VALID ADDRESS TRANSLATION<br>
+Physical Address = Base + Offset = ${base} + ${offset} = <span style="color:#10b981; font-size:20px;">${physAddr}</span><br>
+Segment Range: [${base}, ${base+limit-1}] | Access Address: ${physAddr}<br>
+Status: ✅ Safe access within bounds`;
+                    resultDiv.style.color = '#10b981';
+                    resultDiv.style.borderLeftColor = '#10b981';
+                } else {
+                    resultDiv.innerHTML =
+`❌ SEGMENTATION FAULT<br>
+Offset (${offset}) exceeds Limit (${limit})<br>
+Segment Range: [${base}, ${base+limit-1}] | Attempted: ${base+offset}<br>
+Status: ❌ ILLEGAL MEMORY ACCESS`;
+                    resultDiv.style.color = '#ef4444';
+                    resultDiv.style.borderLeftColor = '#ef4444';
+                }
+                showStatus('✅ Address translation calculated!', 'success');
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function showStatus(message, type) {
+            const s = document.getElementById('statusMessage');
+            s.textContent = message;
+            s.className = `status-message ${type} show`;
+            setTimeout(() => s.classList.remove('show'), 3000);
+        }
+        // NOTE: segmentation visualization is NOT auto-rendered.
+        // It only appears when the user clicks "Calculate Address Translation".
+    </script>
+</body>
+</html>
+

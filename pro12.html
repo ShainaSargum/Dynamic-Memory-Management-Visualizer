@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<!-- Memory Management Visualizer
+     Project file - paging + segmentation + virtual memory notes
+     last touched: changed seg layout, fixed graph not showing -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Visualizer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<style>
+/* ---------- base ---------- */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+    font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);
+    color:#f1f5f9;
+    min-height:100vh;
+    overflow-x:hidden;
+}
+
+/* navbar */
+.navbar{
+    background:linear-gradient(90deg,#00d9ff 0%,#a78bfa 100%);
+    box-shadow:0 4px 20px rgba(0,217,255,.3);
+    position:sticky; top:0; z-index:1000;
+}
+.navbar-content{
+    max-width:1400px; margin:0 auto; padding:20px;
+    display:flex; justify-content:space-between; align-items:center;
+}
+.navbar h1{
+    color:#0f172a; font-size:28px; font-weight:bold;
+    text-shadow:0 2px 4px rgba(0,0,0,.1);
+    animation:glow 3s ease-in-out infinite;
+}
+.nav-tabs{display:flex; gap:10px;}
+.nav-btn{
+    padding:10px 20px; border:none;
+    background:rgba(255,255,255,.2);
+    color:#0f172a; font-weight:bold; cursor:pointer;
+    border-radius:5px; font-size:14px;
+    transition:all .3s;
+}
+.nav-btn:hover{background:rgba(255,255,255,.4); transform:translateY(-2px);}
+.nav-btn.active{
+    background:#0f172a; color:#00d9ff;
+    box-shadow:0 0 15px rgba(0,217,255,.5);
+}
+
+.container{max-width:1400px; margin:0 auto; padding:30px 20px;}
+
+.tab-content{display:none; animation:fadeIn .5s;}
+.tab-content.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+
+/* card / section */
+.section{
+    background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);
+    border:2px solid #00d9ff;
+    border-radius:15px;
+    padding:30px;
+    margin-bottom:30px;
+    box-shadow:0 10px 40px rgba(0,217,255,.1);
+}
+.section h2{
+    color:#00d9ff; font-size:24px; margin-bottom:20px;
+    text-shadow:0 0 10px rgba(0,217,255,.3);
+}
+
+.definition-box{
+    background:rgba(10,14,39,.8);
+    border-left:4px solid #a78bfa;
+    padding:20px;
+    border-radius:8px;
+    margin-bottom:20px;
+    font-size:14px; line-height:1.8; color:#cbd5e1;
+}
+
+/* form */
+.input-group{margin-bottom:20px;}
+.input-group label{
+    display:block; color:#a78bfa; font-weight:bold;
+    margin-bottom:10px; font-size:14px;
+}
+.input-group input{
+    width:100%; padding:12px 15px;
+    background:#0a0e27;
+    border:2px solid #00d9ff;
+    border-radius:8px;
+    color:#00d9ff; font-size:14px;
+    font-family:'Courier New',monospace;
+}
+.input-group input:focus{
+    outline:none; border-color:#a78bfa;
+    box-shadow:0 0 20px rgba(167,139,250,.3);
+}
+
+/* example buttons row */
+.examples-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:10px; margin-bottom:20px;
+}
+.example-btn{
+    padding:12px 16px;
+    background:linear-gradient(135deg,#a78bfa 0%,#7c3aed 100%);
+    color:#fff; border:none; border-radius:8px;
+    cursor:pointer; font-weight:bold; font-size:12px;
+    transition:all .3s;
+}
+.example-btn:hover{transform:translateY(-3px);}
+
+/* algo buttons */
+.algorithm-buttons{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:15px; margin-bottom:20px;
+}
+.algo-btn{
+    padding:18px 25px; border:none; border-radius:10px;
+    font-weight:bold; font-size:16px; cursor:pointer;
+    text-transform:uppercase; letter-spacing:1px;
+    transition:all .3s;
+}
+.fifo-btn{background:linear-gradient(135deg,#00d9ff 0%,#0ea5e9 100%); color:#0f172a;}
+.lru-btn{background:linear-gradient(135deg,#a78bfa 0%,#8b5cf6 100%); color:#fff;}
+.optimal-btn{background:linear-gradient(135deg,#10b981 0%,#059669 100%); color:#fff;}
+.fifo-btn:hover,.lru-btn:hover,.optimal-btn:hover{transform:translateY(-5px);}
+
+/* paging memory canvas - chhota rakha */
+#animationCanvas{
+    width:100%; height:150px;
+    background:#0a0e27;
+    border:2px solid #00d9ff;
+    border-radius:8px;
+    margin-bottom:20px;
+    display:none;
+}
+#animationCanvas.active{display:block;}
+
+/* console */
+#output{
+    background:#000814;
+    border:2px solid #10b981;
+    border-radius:8px;
+    padding:15px; height:220px;
+    overflow-y:auto;
+    font-family:'Courier New',monospace;
+    font-size:12px; color:#10b981;
+    line-height:1.6;
+    white-space:pre-wrap;
+    display:none;
+}
+#output.active{display:block;}
+
+/* stats */
+.stats-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:15px; margin-top:20px;
+}
+.stat-card{
+    background:linear-gradient(135deg,#0a0e27 0%,#1e293b 100%);
+    border:2px solid #00d9ff;
+    border-radius:10px;
+    padding:18px; text-align:center;
+}
+.stat-card h3{color:#00d9ff; margin-bottom:12px; font-size:16px;}
+.stat-value{
+    font-size:22px; font-weight:bold;
+    color:#10b981; margin-bottom:4px;
+    font-family:'Courier New',monospace;
+}
+.stat-label{color:#cbd5e1; font-size:12px;}
+
+/* graphs - fix: wrapper ka height de diya warna chart show nahi hota */
+.graph-section{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(380px,1fr));
+    gap:20px; margin-top:10px;
+}
+.graph-container{
+    background:#1e293b;
+    border:2px solid #a78bfa;
+    border-radius:10px;
+    padding:20px;
+}
+.graph-container h3{color:#a78bfa; margin-bottom:15px; text-align:center;}
+.chart-wrap{position:relative; height:260px; width:100%;}
+
+.graph-btn{
+    padding:15px 30px;
+    background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);
+    color:#fff; border:none; border-radius:8px;
+    font-weight:bold; font-size:16px;
+    cursor:pointer; width:100%; margin-top:10px;
+    transition:all .3s;
+}
+.graph-btn:hover{transform:translateY(-3px);}
+
+/* segmentation - chhoti banayi, default me hide */
+#segWrap{display:none;}
+#segWrap.active{display:block;}
+#segmentationCanvas{
+    width:100%; height:170px;
+    background:#0a0e27;
+    border:2px solid #10b981;
+    border-radius:8px;
+    margin:10px 0;
+}
+
+/* misc */
+::-webkit-scrollbar{width:8px;}
+::-webkit-scrollbar-track{background:#0f172a;}
+::-webkit-scrollbar-thumb{background:#00d9ff; border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:#a78bfa;}
+
+@keyframes glow{
+    0%,100%{text-shadow:0 0 10px rgba(0,217,255,.3);}
+    50%{text-shadow:0 0 20px rgba(0,217,255,.6),0 0 30px rgba(167,139,250,.4);}
+}
+
+.help-text{
+    color:#a78bfa; font-size:12px; margin-top:10px;
+    padding:10px;
+    background:rgba(167,139,250,.1);
+    border-left:3px solid #a78bfa;
+    border-radius:4px;
+}
+
+.status-message{
+    padding:15px; border-radius:8px; margin-bottom:20px;
+    display:none;
+}
+.status-message.success{background:rgba(16,185,129,.2); border:2px solid #10b981; color:#10b981;}
+.status-message.error{background:rgba(239,68,68,.2); border:2px solid #ef4444; color:#ef4444;}
+.status-message.show{display:block;}
+
+@media (max-width:768px){
+    .navbar-content{flex-direction:column; gap:15px;}
+    .nav-tabs{flex-wrap:wrap;}
+    .algorithm-buttons{grid-template-columns:1fr;}
+    .graph-section{grid-template-columns:1fr;}
+    .navbar h1{font-size:20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- top bar -->
+<div class="navbar">
+    <div class="navbar-content">
+        <h1>Memory Visualizer</h1>
+        <div class="nav-tabs">
+            <button class="nav-btn active" onclick="switchTab(event,'paging')">Paging</button>
+            <button class="nav-btn" onclick="switchTab(event,'segmentation')">Segmentation</button>
+            <button class="nav-btn" onclick="switchTab(event,'virtual')">Virtual Memory</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <div id="statusMessage" class="status-message"></div>
+
+    <!-- ============ PAGING ============ -->
+    <div id="paging" class="tab-content active">
+
+        <div class="section">
+            <h2>Paging - basics</h2>
+            <div class="definition-box">
+                <strong>Paging:</strong> physical RAM ko fixed size FRAMES me todte hain
+                aur logical memory ko PAGES me. OS dono ko map karta hai.<br><br>
+                <strong>PAGE</strong> - logical block (e.g. 4KB)<br>
+                <strong>FRAME</strong> - physical block in RAM<br>
+                <strong>PAGE FAULT</strong> - page RAM me nahi mila, disk se laana padega<br>
+                <strong>PAGE HIT</strong> - page already RAM me hai<br>
+                <strong>Algorithms:</strong> FIFO, LRU, OPTIMAL
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Input</h2>
+
+            <label style="color:#00d9ff; font-weight:bold; display:block; margin-bottom:10px;">
+                Quick examples:
+            </label>
+            <div class="examples-grid">
+                <button class="example-btn" onclick="loadExample(1)">Example 1</button>
+                <button class="example-btn" onclick="loadExample(2)">Example 2</button>
+                <button class="example-btn" onclick="loadExample(3)">Example 3</button>
+                <button class="example-btn" onclick="loadExample(4)">Example 4</button>
+                <button class="example-btn" onclick="loadExample(5)">Example 5</button>
+            </div>
+
+            <div class="input-group">
+                <label>Page reference string</label>
+                <input type="text" id="pageInput"
+                       placeholder="e.g.  1 2 3 4 1 2 5 1">
+                <div class="help-text">Tip: ya to upar wala example dabao ya khud likho.</div>
+            </div>
+
+            <div class="input-group">
+                <label>Number of frames</label>
+                <input type="number" id="framesInput" value="3" min="1" max="10">
+            </div>
+
+            <div class="input-group">
+                <label>Animation speed (ms)</label>
+                <input type="range" id="speedInput" min="50" max="1000" value="300"
+                       style="width:100%;height:6px;cursor:pointer;">
+                <div style="color:#cbd5e1;font-size:12px;margin-top:5px;">
+                    Current: <span id="speedValue">300</span> ms
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Run algorithm</h2>
+            <div class="algorithm-buttons">
+                <button class="algo-btn fifo-btn"    onclick="runAlgorithm('FIFO')">Run FIFO</button>
+                <button class="algo-btn lru-btn"     onclick="runAlgorithm('LRU')">Run LRU</button>
+                <button class="algo-btn optimal-btn" onclick="runAlgorithm('OPTIMAL')">Run OPTIMAL</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Memory visualization</h2>
+            <canvas id="animationCanvas" width="1200" height="150"></canvas>
+            <div id="output"></div>
+        </div>
+
+        <div class="section">
+            <h2>Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>FIFO</h3>
+                    <div class="stat-value" id="fifo-faults">-</div>
+                    <div class="stat-label">Faults</div>
+                    <div class="stat-value" id="fifo-ratio">-</div>
+                    <div class="stat-label">Hit ratio</div>
+                </div>
+                <div class="stat-card">
+                    <h3>LRU</h3>
+                    <div class="stat-value" id="lru-faults">-</div>
+                    <div class="stat-label">Faults</div>
+                    <div class="stat-value" id="lru-ratio">-</div>
+                    <div class="stat-label">Hit ratio</div>
+                </div>
+                <div class="stat-card">
+                    <h3>OPTIMAL</h3>
+                    <div class="stat-value" id="optimal-faults">-</div>
+                    <div class="stat-label">Faults</div>
+                    <div class="stat-value" id="optimal-ratio">-</div>
+                    <div class="stat-label">Hit ratio</div>
+                </div>
+            </div>
+
+            <button class="graph-btn" onclick="showGraphs()">Show comparison graphs</button>
+        </div>
+
+        <div id="graphsSection" style="display:none;">
+            <div class="section">
+                <h2>Comparison graphs</h2>
+                <div class="graph-section">
+                    <div class="graph-container">
+                        <h3>Page faults</h3>
+                        <div class="chart-wrap"><canvas id="faultChart"></canvas></div>
+                    </div>
+                    <div class="graph-container">
+                        <h3>Hit ratio</h3>
+                        <div class="chart-wrap"><canvas id="ratioChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ SEGMENTATION ============ -->
+    <div id="segmentation" class="tab-content">
+
+        <div class="section">
+            <h2>Segmentation - basics</h2>
+            <div class="definition-box">
+                Memory ko variable size logical blocks (segments) me divide karte hain.<br><br>
+                <strong>BASE</strong> - physical starting address<br>
+                <strong>LIMIT</strong> - max size (offset is checked against this)<br>
+                <strong>OFFSET</strong> - distance inside the segment<br>
+                Valid if offset &lt; limit, otherwise segmentation fault.<br><br>
+                <strong>Physical address = base + offset</strong>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Address translation</h2>
+
+            <label style="color:#10b981; font-weight:bold; display:block; margin-bottom:10px;">
+                Examples:
+            </label>
+            <div class="examples-grid">
+                <button class="example-btn" onclick="loadSegExample('safe')"
+                    style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);">Safe</button>
+                <button class="example-btn" onclick="loadSegExample('border')"
+                    style="background:linear-gradient(135deg,#00d9ff 0%,#0ea5e9 100%);">Border</button>
+                <button class="example-btn" onclick="loadSegExample('fault')"
+                    style="background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);">Fault</button>
+                <button class="example-btn" onclick="loadSegExample('large')"
+                    style="background:linear-gradient(135deg,#a78bfa 0%,#8b5cf6 100%);">Large</button>
+                <button class="example-btn" onclick="loadSegExample('edge')"
+                    style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);">Edge</button>
+            </div>
+
+            <div class="input-group">
+                <label>Base address</label>
+                <input type="number" id="baseInput" value="1000" min="0">
+            </div>
+            <div class="input-group">
+                <label>Limit (segment size)</label>
+                <input type="number" id="limitInput" value="2000" min="1">
+            </div>
+            <div class="input-group">
+                <label>Offset</label>
+                <input type="number" id="offsetInput" value="500" min="0">
+            </div>
+
+            <button class="graph-btn" onclick="calculateSegmentation()"
+                style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);">
+                Calculate
+            </button>
+        </div>
+
+        <!-- yeh tabhi dikhega jab user calculate karega -->
+        <div id="segWrap">
+            <div class="section">
+                <h2>Segment layout</h2>
+                <canvas id="segmentationCanvas" width="1200" height="170"></canvas>
+                <div id="segmentationResult"
+                     style="background:#0a0e27;border-left:4px solid #10b981;padding:18px;
+                            border-radius:8px;font-size:15px;font-weight:bold;
+                            color:#10b981;font-family:'Courier New',monospace;margin-top:10px;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ VIRTUAL MEMORY ============ -->
+    <div id="virtual" class="tab-content">
+        <div class="section">
+            <h2>Virtual Memory</h2>
+
+            <div class="definition-box">
+                Virtual memory ek technique hai jisme program ko aisa lagta hai ki uske paas
+                ek bahut bada continuous memory hai, jabki actually OS RAM + disk (swap)
+                dono ka use karta hai. CPU jo virtual address generate karta hai use MMU
+                physical address me translate karta hai.
+            </div>
+
+            <div class="definition-box" style="border-left-color:#00d9ff;">
+                <h3 style="color:#00d9ff; margin-bottom:10px;">Need / kyon use karte hain</h3>
+                - Programs RAM se bade bhi run ho sakte hain<br>
+                - Har process ka apna isolated address space hota hai (security)<br>
+                - Memory sharing easy ho jata hai<br>
+                - Linker / loader ka kaam simple ho jata hai
+            </div>
+
+            <div class="definition-box" style="border-left-color:#a78bfa;">
+                <h3 style="color:#a78bfa; margin-bottom:10px;">Important terms</h3>
+                <strong>Virtual address</strong> - CPU jo address generate karta hai<br>
+                <strong>Physical address</strong> - actual RAM ka location<br>
+                <strong>Page table</strong> - virtual page -> physical frame mapping<br>
+                <strong>MMU</strong> - hardware unit jo translate karta hai<br>
+                <strong>TLB</strong> - cache for recent page table entries (fast lookup)<br>
+                <strong>Swap space</strong> - disk pe wo area jaha pages temporarily store hote hain
+            </div>
+
+            <div class="definition-box" style="border-left-color:#10b981;">
+                <h3 style="color:#10b981; margin-bottom:10px;">Demand paging</h3>
+                Page tabhi RAM me lao jab actually use ho. Agar page nahi mila to page fault
+                aata hai, OS disk se page laata hai aur (zarurat hone par) FIFO / LRU /
+                OPTIMAL se kisi purane page ko replace karta hai.
+            </div>
+
+            <div class="definition-box" style="border-left-color:#f59e0b;">
+                <h3 style="color:#f59e0b; margin-bottom:10px;">Translation flow</h3>
+                1. CPU virtual address banata hai = page number + offset<br>
+                2. MMU pehle TLB check karta hai, miss ho to page table dekhta hai<br>
+                3. Agar page RAM me hai - physical address = frame * pageSize + offset<br>
+                4. Nahi to page fault -> OS disk se laata hai -> instruction retry hoti hai
+            </div>
+
+            <div class="definition-box" style="border-left-color:#ef4444;">
+                <h3 style="color:#ef4444; margin-bottom:10px;">Thrashing</h3>
+                Jab system useful kaam se zyaada time pages swap karne me lagata hai. Reason:
+                bahut zyada processes, kam frames. Solution - working set model, load control.
+            </div>
+
+            <div class="definition-box" style="border-left-color:#00d9ff;">
+                <h3 style="color:#00d9ff; margin-bottom:10px;">Effective Access Time (EAT)</h3>
+                EAT = (1 - p) * memory_access + p * page_fault_time<br>
+                Jaha p = page fault rate. Choti si p value bhi performance kharab kar sakti
+                hai kyunki disk access RAM se bahut slow hota hai.
+            </div>
+
+            <div class="definition-box" style="border-left-color:#a78bfa;">
+                <h3 style="color:#a78bfa; margin-bottom:10px;">Pros / Cons</h3>
+                <strong>Pros:</strong> bada logical address space, isolation, multiprogramming,
+                on-demand loading.<br>
+                <strong>Cons:</strong> page fault overhead, thrashing risk, hardware complexity.
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ----- example data -----
+var examples = {
+    1: { pages: '7 0 1 2 0 3 0 4 2 3 0 3 2 1 2',          frames: '3' },
+    2: { pages: '1 2 3 4 1 2 3 4 1 2 3 4 1 2 3 4',        frames: '3' },
+    3: { pages: '1 2 3 4 5 6 7 8 9 10 1 2 3 4 5',         frames: '3' },
+    4: { pages: '4 7 6 1 7 6 1 6 2 7 2 7 2 1 1 4 6 4 2 1', frames: '3' },
+    5: { pages: '1 2 3 4 1 2 5 1 2 3 4 5 3 4 3 2 1 5',     frames: '3' }
+};
+
+var segExamples = {
+    safe:   { base:'1000', limit:'2000', offset:'500'  },
+    border: { base:'5000', limit:'1000', offset:'999'  },
+    fault:  { base:'1000', limit:'500',  offset:'600'  },
+    large:  { base:'0',    limit:'5000', offset:'2000' },
+    edge:   { base:'2000', limit:'1000', offset:'1000' }
+};
+
+// kis algo ka stat already calc ho chuka hai
+var stats = {};
+
+// ----- helpers -----
+function switchTab(ev, tabName) {
+    var tabs = document.querySelectorAll('.tab-content');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+    var btns = document.querySelectorAll('.nav-btn');
+    for (var j = 0; j < btns.length; j++) btns[j].classList.remove('active');
+    document.getElementById(tabName).classList.add('active');
+    ev.target.classList.add('active');
+}
+
+function loadExample(n) {
+    var ex = examples[n];
+    document.getElementById('pageInput').value   = ex.pages;
+    document.getElementById('framesInput').value = ex.frames;
+    showStatus('Example ' + n + ' loaded', 'success');
+}
+
+function loadSegExample(type) {
+    var ex = segExamples[type];
+    document.getElementById('baseInput').value   = ex.base;
+    document.getElementById('limitInput').value  = ex.limit;
+    document.getElementById('offsetInput').value = ex.offset;
+    calculateSegmentation();
+}
+
+document.getElementById('speedInput').addEventListener('input', function () {
+    document.getElementById('speedValue').textContent = this.value;
+});
+
+// ----- algorithms -----
+
+// FIFO - simplest one, jo pehle aaya use pehle hatao
+function fifo(pages, cap) {
+    var frame = [], faults = 0, idx = 0, steps = [];
+    for (var i = 0; i < pages.length; i++) {
+        var p = pages[i];
+        if (frame.indexOf(p) === -1) {
+            if (frame.length < cap) {
+                frame.push(p);
+            } else {
+                frame[idx] = p;
+                idx = (idx + 1) % cap;
+            }
+            faults++;
+        }
+        steps.push(frame.slice());
+    }
+    return { faults: faults, steps: steps };
+}
+
+// LRU - jo sabse purana use hua wo nikalo
+function lru(pages, cap) {
+    var frame = [], faults = 0, steps = [];
+    for (var i = 0; i < pages.length; i++) {
+        if (frame.indexOf(pages[i]) === -1) {
+            if (frame.length < cap) {
+                frame.push(pages[i]);
+            } else {
+                // har frame ka last used index nikalo
+                var victim = 0, oldest = i;
+                for (var j = 0; j < frame.length; j++) {
+                    var lastSeen = -1;
+                    for (var k = i - 1; k >= 0; k--) {
+                        if (pages[k] === frame[j]) { lastSeen = k; break; }
+                    }
+                    if (lastSeen < oldest) {
+                        oldest = lastSeen;
+                        victim = j;
+                    }
+                }
+                frame[victim] = pages[i];
+            }
+            faults++;
+        }
+        steps.push(frame.slice());
+    }
+    return { faults: faults, steps: steps };
+}
+
+// OPTIMAL - jo future me sabse late use hone wala hai use hatao
+function optimal(pages, cap) {
+    var frame = [], faults = 0, steps = [];
+    for (var i = 0; i < pages.length; i++) {
+        if (frame.indexOf(pages[i]) === -1) {
+            if (frame.length < cap) {
+                frame.push(pages[i]);
+            } else {
+                var future = pages.slice(i + 1);
+                var victim = -1, farthest = -1;
+                for (var j = 0; j < frame.length; j++) {
+                    if (future.indexOf(frame[j]) === -1) {
+                        // future me kabhi use nahi hoga - perfect victim
+                        victim = j;
+                        break;
+                    } else {
+                        var pos = future.indexOf(frame[j]);
+                        if (pos > farthest) {
+                            farthest = pos;
+                            victim = j;
+                        }
+                    }
+                }
+                frame[victim] = pages[i];
+            }
+            faults++;
+        }
+        steps.push(frame.slice());
+    }
+    return { faults: faults, steps: steps };
+}
+
+// ----- drawing -----
+function drawFrames(canvas, frame, current) {
+    var ctx = canvas.getContext('2d');
+    var W = canvas.width, H = canvas.height;
+    ctx.fillStyle = '#0a0e27';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#00d9ff';
+    ctx.font = 'bold 12px Segoe UI';
+    ctx.textAlign = 'left';
+    ctx.fillText('Current memory frames:', 16, 18);
+
+    var n = Math.max(frame.length, 1);
+    var fw = Math.min(70, (W - 60) / n - 16);
+    var fh = 70;
+    var top = 40;
+    var left = 30;
+    var gap = fw + 16;
+
+    for (var i = 0; i < frame.length; i++) {
+        var x = left + i * gap;
+        var hit = frame[i] === current;
+        var color = hit ? '#10b981' : '#00d9ff';
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = hit ? 4 : 2;
+        ctx.strokeRect(x, top, fw, fh);
+
+        ctx.fillStyle = '#a78bfa';
+        ctx.font = 'bold 10px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText('Frame ' + i, x + fw / 2, top - 6);
+
+        ctx.fillStyle = color;
+        ctx.font = 'bold 22px Courier New';
+        ctx.fillText(frame[i], x + fw / 2, top + fh / 2 + 8);
+    }
+}
+
+// ----- run a chosen algorithm + animate -----
+function runAlgorithm(name) {
+    try {
+        var pageStr  = document.getElementById('pageInput').value.trim();
+        var frameStr = document.getElementById('framesInput').value.trim();
+
+        if (!pageStr)  throw new Error('Page references daalo pehle');
+        if (!frameStr) throw new Error('Frames count daalo');
+
+        var pages = pageStr.split(/\s+/).map(Number);
+        var cap   = parseInt(frameStr, 10);
+
+        if (cap <= 0) throw new Error('Frames > 0 hone chahiye');
+        for (var i = 0; i < pages.length; i++) {
+            if (isNaN(pages[i])) throw new Error('Page references sirf numbers ho');
+        }
+
+        var canvas = document.getElementById('animationCanvas');
+        var output = document.getElementById('output');
+        var speed  = parseInt(document.getElementById('speedInput').value, 10);
+
+        canvas.classList.add('active');
+        output.classList.add('active');
+        output.textContent = '';
+
+        var result;
+        if      (name === 'FIFO') result = fifo(pages, cap);
+        else if (name === 'LRU')  result = lru(pages, cap);
+        else                      result = optimal(pages, cap);
+
+        var faults = result.faults;
+        var steps  = result.steps;
+        var hits   = pages.length - faults;
+        var ratio  = ((hits / pages.length) * 100).toFixed(1);
+
+        stats[name] = { faults: faults, hits: hits, ratio: ratio };
+
+        var key = name.toLowerCase();
+        document.getElementById(key + '-faults').textContent = faults;
+        document.getElementById(key + '-ratio').textContent  = ratio + '%';
+
+        output.textContent +=
+            '===================================================\n' +
+            '  ' + name + ' algorithm\n' +
+            '===================================================\n' +
+            'Faults: ' + faults + ' | Hits: ' + hits + ' | Ratio: ' + ratio + '%\n' +
+            '---------------------------------------------------\n';
+
+        // step by step animate
+        var step = 0;
+        function tick() {
+            if (step >= steps.length) return;
+            var prev = step > 0 ? steps[step - 1] : [];
+            var status = prev.indexOf(pages[step]) !== -1 ? 'HIT' : 'FAULT';
+
+            drawFrames(canvas, steps[step], pages[step]);
+
+            output.textContent += 'Step ' + (step + 1) + ': [' + steps[step].join(', ') +
+                                  '] -> Page ' + pages[step] + ' -> ' + status + '\n';
+            output.scrollTop = output.scrollHeight;
+
+            step++;
+            setTimeout(tick, speed);
+        }
+        tick();
+
+        showStatus(name + ' done', 'success');
+    } catch (err) {
+        showStatus('Error: ' + err.message, 'error');
+    }
+}
+
+// ----- comparison graphs -----
+// note: pehle yeh kaam nahi karta tha kyunki canvas ka height nahi tha
+// fix - chart-wrap div ko fixed height diya + maintainAspectRatio:false
+function showGraphs() {
+    try {
+        var keys = Object.keys(stats);
+        if (keys.length === 0) throw new Error('Pehle kam se kam ek algorithm chalao');
+
+        document.getElementById('graphsSection').style.display = 'block';
+
+        var faults = keys.map(function (k) { return stats[k].faults; });
+        var ratios = keys.map(function (k) { return parseFloat(stats[k].ratio); });
+        var colors = ['#00d9ff', '#a78bfa', '#10b981'];
+
+        var fctx = document.getElementById('faultChart').getContext('2d');
+        if (window._faultChart) window._faultChart.destroy();
+        window._faultChart = new Chart(fctx, {
+            type: 'bar',
+            data: {
+                labels: keys,
+                datasets: [{
+                    label: 'Page faults',
+                    data: faults,
+                    backgroundColor: colors,
+                    borderColor: colors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#cbd5e1' } } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { color: '#cbd5e1' }, grid: { color: '#1e293b' } },
+                    x: { ticks: { color: '#cbd5e1' }, grid: { color: '#1e293b' } }
+                }
+            }
+        });
+
+        var rctx = document.getElementById('ratioChart').getContext('2d');
+        if (window._ratioChart) window._ratioChart.destroy();
+        window._ratioChart = new Chart(rctx, {
+            type: 'bar',
+            data: {
+                labels: keys,
+                datasets: [{
+                    label: 'Hit ratio (%)',
+                    data: ratios,
+                    backgroundColor: colors,
+                    borderColor: colors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#cbd5e1' } } },
+                scales: {
+                    y: { beginAtZero: true, max: 100, ticks: { color: '#cbd5e1' }, grid: { color: '#1e293b' } },
+                    x: { ticks: { color: '#cbd5e1' }, grid: { color: '#1e293b' } }
+                }
+            }
+        });
+
+        document.getElementById('graphsSection').scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+        showStatus('Error: ' + err.message, 'error');
+    }
+}
+
+// ----- segmentation -----
+function calculateSegmentation() {
+    try {
+        var bEl = document.getElementById('baseInput');
+        var lEl = document.getElementById('limitInput');
+        var oEl = document.getElementById('offsetInput');
+
+        if (bEl.value === '' || lEl.value === '' || oEl.value === '') {
+            throw new Error('Base, Limit, Offset teeno daalo');
+        }
+
+        var base   = parseInt(bEl.value, 10);
+        var limit  = parseInt(lEl.value, 10);
+        var offset = parseInt(oEl.value, 10);
+
+        if (isNaN(limit)  || limit  <= 0) throw new Error('Limit > 0 chahiye');
+        if (isNaN(base)   || base   <  0) throw new Error('Base >= 0 chahiye');
+        if (isNaN(offset) || offset <  0) throw new Error('Offset >= 0 chahiye');
+
+        // ab visualization show karo (pehle hidden tha)
+        document.getElementById('segWrap').classList.add('active');
+
+        var canvas = document.getElementById('segmentationCanvas');
+        var ctx = canvas.getContext('2d');
+        var W = canvas.width, H = canvas.height;
+
+        ctx.fillStyle = '#0a0e27';
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.fillStyle = '#00d9ff';
+        ctx.font = 'bold 13px Segoe UI';
+        ctx.textAlign = 'left';
+        ctx.fillText('Physical memory segment layout:', 20, 22);
+
+        var memStart = 80;
+        var memEnd   = W - 80;
+        var memH     = 50;
+        var memY     = 45;
+
+        // outer block
+        ctx.strokeStyle = '#00d9ff';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(memStart, memY, memEnd - memStart, memH);
+
+        // used part
+        var segWidth = memEnd - memStart;
+        var fillRatio = Math.min(offset / limit, 1);
+        ctx.fillStyle = (offset < limit) ? '#10b981' : '#ef4444';
+        ctx.fillRect(memStart, memY, fillRatio * segWidth, memH);
+
+        // base label
+        ctx.strokeStyle = '#00d9ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(memStart, memY + memH);
+        ctx.lineTo(memStart, memY + memH + 18);
+        ctx.stroke();
+        ctx.fillStyle = '#00d9ff';
+        ctx.font = 'bold 11px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText('BASE ' + base, memStart, memY + memH + 32);
+
+        // limit label
+        ctx.strokeStyle = '#a78bfa';
+        ctx.beginPath();
+        ctx.moveTo(memEnd, memY + memH);
+        ctx.lineTo(memEnd, memY + memH + 18);
+        ctx.stroke();
+        ctx.fillStyle = '#a78bfa';
+        ctx.fillText('LIMIT ' + limit, memEnd, memY + memH + 32);
+
+        // offset marker (upar)
+        var offX = memStart + fillRatio * segWidth;
+        ctx.strokeStyle = (offset < limit) ? '#10b981' : '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(offX, memY);
+        ctx.lineTo(offX, memY - 14);
+        ctx.stroke();
+        ctx.fillStyle = (offset < limit) ? '#10b981' : '#ef4444';
+        ctx.fillText('OFFSET +' + offset, offX, memY - 18);
+
+        // result text
+        var box = document.getElementById('segmentationResult');
+        if (offset < limit) {
+            var phys = base + offset;
+            box.innerHTML =
+                'VALID address translation<br>' +
+                'Physical = Base + Offset = ' + base + ' + ' + offset +
+                ' = <span style="color:#10b981;font-size:20px;">' + phys + '</span><br>' +
+                'Segment range: [' + base + ', ' + (base + limit - 1) + ']<br>' +
+                'Status: safe access';
+            box.style.color = '#10b981';
+            box.style.borderLeftColor = '#10b981';
+        } else {
+            box.innerHTML =
+                'SEGMENTATION FAULT<br>' +
+                'Offset (' + offset + ') is >= Limit (' + limit + ')<br>' +
+                'Segment range: [' + base + ', ' + (base + limit - 1) + ']<br>' +
+                'Tried address: ' + (base + offset) + '<br>' +
+                'Status: illegal access';
+            box.style.color = '#ef4444';
+            box.style.borderLeftColor = '#ef4444';
+        }
+    } catch (err) {
+        showStatus('Error: ' + err.message, 'error');
+    }
+}
+
+// ----- small status toast -----
+function showStatus(msg, type) {
+    var el = document.getElementById('statusMessage');
+    el.textContent = msg;
+    el.className = 'status-message ' + type + ' show';
+    setTimeout(function () { el.classList.remove('show'); }, 3000);
+}
+
+// note: segmentation visualization auto load nahi hoti.
+// jab user value daal ke calculate dabayega tabhi appear hogi.
+</script>
+</body>
+</html>

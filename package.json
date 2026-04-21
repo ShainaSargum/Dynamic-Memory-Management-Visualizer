@@ -2,5 +2,27 @@
   "dependencies": {
     "@tailwindcss/cli": "^4.1.18",
     "tailwindcss": "^4.1.18"
+  },
+  "name": "html",
+  "version": "1.0.0",
+  "description": "",
+  "main": "ESLint.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShainaSargum/test2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ShainaSargum/test2/issues"
+  },
+  "homepage": "https://github.com/ShainaSargum/test2#readme",
+  "devDependencies": {
+    "eslint": "^8.57.1"
   }
 }
